@@ -3,6 +3,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from matplotlib.ticker import FuncFormatter
 from sklearn.preprocessing import MinMaxScaler
 
 # Thuộc tính so sánh của biểu đồ radar (README mục 5 - Tổ 3): tên chuẩn ->
@@ -53,7 +54,21 @@ def plot_histogram(df, column):
     sns.histplot(data=data_to_plot, bins=20, kde=True, color="skyblue", edgecolor="black", ax=ax)
     
     ax.set_title(f"Biểu đồ phân bố (Histogram) của {column}", fontsize=14, fontweight='bold')
-    ax.set_xlabel(column, fontsize=12)
+    # Neu gia tri lon (>= 1 trieu), doi nhan truc X sang don vi trieu/ty USD
+    # de tranh ky hieu khoa hoc kieu 1e9 kho doc.
+    max_abs = float(data_to_plot.abs().max())
+    if max_abs >= 1e9:
+        ax.xaxis.set_major_formatter(
+            FuncFormatter(lambda v, _p: f"{v / 1e9:,.1f}B")
+        )
+        ax.set_xlabel(f"{column} (ty USD)", fontsize=12)
+    elif max_abs >= 1e6:
+        ax.xaxis.set_major_formatter(
+            FuncFormatter(lambda v, _p: f"{v / 1e6:,.0f}M")
+        )
+        ax.set_xlabel(f"{column} (trieu USD)", fontsize=12)
+    else:
+        ax.set_xlabel(column, fontsize=12)
     ax.set_ylabel("Số lượng phim", fontsize=12)
     ax.grid(axis='y', linestyle='--', alpha=0.7)
 
