@@ -34,7 +34,30 @@ def plot_histogram(df, column):
         - Trả về Figure, không gọi plt.show hoặc hàm Streamlit tại đây;
           tầng gọi chịu trách nhiệm đóng hình sau khi sử dụng.
     """
-    pass
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+def plot_histogram(df, column):
+    if column not in df.columns or not pd.api.types.is_numeric_dtype(df[column]):
+        raise ValueError(f"Cột '{column}' không tồn tại hoặc không phải dữ liệu số.")
+        
+    data_to_plot = df[column].dropna()
+    data_to_plot = data_to_plot[~data_to_plot.isin([np.inf, -np.inf])]
+    
+    if data_to_plot.empty:
+        raise ValueError(f"Không có dữ liệu hợp lệ để vẽ biểu đồ cho cột '{column}'.")
+
+    fig, ax = plt.subplots(figsize=(8, 5))
+    sns.histplot(data=data_to_plot, bins=20, kde=True, color="skyblue", edgecolor="black", ax=ax)
+    
+    ax.set_title(f"Biểu đồ phân bố (Histogram) của {column}", fontsize=14, fontweight='bold')
+    ax.set_xlabel(column, fontsize=12)
+    ax.set_ylabel("Số lượng phim", fontsize=12)
+    ax.grid(axis='y', linestyle='--', alpha=0.7)
+
+    return fig
 
 
 def plot_radar_chart(df, movie1_name, movie2_name):
