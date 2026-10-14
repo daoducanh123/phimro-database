@@ -114,12 +114,44 @@ if section == "Overview & Data Cleaning (Part I)":
 
 elif section == "Statistics & Distribution (Part II)":
     st.header("Phần II: Thống kê và phân phối")
-    # Kiểm tra dữ liệu sạch đã có trước khi cho phép chọn cột phân tích.
-    st.info(
-        "Nhóm Phần II: Tích hợp calculate_basic_stats(df), "
-        "get_top_bottom_movies(df, column) và plot_histogram(df, column). "
-        "Lưu bảng thống kê vào data/results2.csv và dùng st.pyplot cho hình."
-    )
+    
+    # 1. Lấy dữ liệu từ session (nếu đã làm sạch ở Phần I)
+    df = get_data()
+    
+    if df is None:
+        st.error("Chưa có dữ liệu. Hãy quay lại 'Phần I' để chạy làm sạch hoặc tải file lên trước.")
+    else:
+        st.info(
+            "Nhóm Phần II: Tích hợp calculate_basic_stats(df), "
+            "get_top_bottom_movies(df, column) và plot_histogram(df, column). "
+            "Lưu bảng thống kê vào data/results2.csv và dùng st.pyplot cho hình."
+        )
+        
+        # ==========================================
+        # PHẦN CODE CỦA BẠN (VẼ HISTOGRAM)
+        # ==========================================
+        st.subheader("Biểu đồ Phân phối (Histogram)")
+        
+        # Tạo dropdown chọn Điểm số hoặc Doanh thu
+        option = st.selectbox(
+            "Chọn dữ liệu muốn xem:", 
+            options=["Điểm số (IMDb_Rating)", "Doanh thu (Revenue_USD)"]
+        )
+        
+        # Đưa về đúng tên cột chuẩn trong file cleaned data của dự án
+        col_to_plot = "Rating" if option == "Điểm số (IMDb_Rating)" else "Revenue"
+
+        # Thêm 2 dòng này ngay bên dưới để đảm bảo dữ liệu là số, đề phòng file CSV bị lỗi định dạng chữ:
+        df["Rating"] = pd.to_numeric(df["Rating"], errors="coerce")
+        df["Revenue"] = pd.to_numeric(df["Revenue"], errors="coerce")
+        
+        try:
+            # Gọi hàm vẽ bạn đã viết ở src/visualizer.py
+            fig_hist = plot_histogram(df, col_to_plot)
+            st.pyplot(fig_hist)
+        except Exception as e:
+            st.error(f"Lỗi khi vẽ biểu đồ: {e}")
+
 
 elif section == "Clustering & Radar Chart (Part III)":
     st.header("Phần III: Phân cụm và biểu đồ radar")
