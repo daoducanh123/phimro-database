@@ -3,6 +3,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import seaborn as sns
 from matplotlib.ticker import FuncFormatter
 from sklearn.preprocessing import MinMaxScaler
 
@@ -16,29 +17,6 @@ _RADAR_ATTRIBUTES = {
     "Duration_min": ("Duration_min", "Duration"),
 }
 
-
-def plot_histogram(df, column):
-    """Tạo biểu đồ phân phối của một cột số.
-
-    Tham số:
-        df (pandas.DataFrame): Dữ liệu phim đã làm sạch.
-        column (str): Tên cột số cần trực quan hóa.
-
-    Trả về khi hoàn thiện:
-        matplotlib.figure.Figure: Hình để tầng giao diện dùng st.pyplot.
-
-    Công việc cần triển khai:
-        - Kiểm tra cột tồn tại, có kiểu số và còn giá trị hợp lệ.
-        - Bỏ giá trị thiếu hoặc vô hạn, chọn số khoảng chia phù hợp.
-        - Tạo Figure/Axes riêng bằng matplotlib.pyplot.subplots.
-        - Vẽ histogram với tiêu đề, tên trục và đơn vị rõ ràng.
-        - Trả về Figure, không gọi plt.show hoặc hàm Streamlit tại đây;
-          tầng gọi chịu trách nhiệm đóng hình sau khi sử dụng.
-    """
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 
 def plot_histogram(df, column):
     if column not in df.columns or not pd.api.types.is_numeric_dtype(df[column]):
@@ -61,7 +39,7 @@ def plot_histogram(df, column):
         ax.xaxis.set_major_formatter(
             FuncFormatter(lambda v, _p: f"{v / 1e9:,.1f}B")
         )
-        ax.set_xlabel(f"{column} (ty USD)", fontsize=12)
+        ax.set_xlabel(f"{column} (USD)", fontsize=12)
     elif max_abs >= 1e6:
         ax.xaxis.set_major_formatter(
             FuncFormatter(lambda v, _p: f"{v / 1e6:,.0f}M")

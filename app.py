@@ -121,36 +121,59 @@ elif section == "Statistics & Distribution (Part II)":
     if df is None:
         st.error("Chưa có dữ liệu. Hãy quay lại 'Phần I' để chạy làm sạch hoặc tải file lên trước.")
     else:
-        st.info(
-            "Nhóm Phần II: Tích hợp calculate_basic_stats(df), "
-            "get_top_bottom_movies(df, column) và plot_histogram(df, column). "
-            "Lưu bảng thống kê vào data/results2.csv và dùng st.pyplot cho hình."
-        )
-        
-        # ==========================================
-        # PHẦN CODE CỦA BẠN (VẼ HISTOGRAM)
-        # ==========================================
-        st.subheader("Biểu đồ Phân phối (Histogram)")
-        
-        # Tạo dropdown chọn Điểm số hoặc Doanh thu
-        option = st.selectbox(
-            "Chọn dữ liệu muốn xem:", 
-            options=["Điểm số (IMDb_Rating)", "Doanh thu (Revenue_USD)"]
-        )
-        
-        # Đưa về đúng tên cột chuẩn trong file cleaned data của dự án
-        col_to_plot = "Rating" if option == "Điểm số (IMDb_Rating)" else "Revenue"
+            # Cột số khả dụng cho thống kê
+            stat_cols = [c for c in ("Duration", "Rating", "Budget", "Revenue") if c in df.columns]
+            if not stat_cols:
+                st.warning("Không tìm thấy cột số nào để thống kê trong dữ liệu.")
+            else:
+                # --- 1. Bảng thống kê cơ bản ---
+                st.subheader("1. Thống kê mô tả cơ bản")
+                try:
+                    stats_overall, stats_by_genre = calculate_basic_stats(df)
+                    st.dataframe(stats_overall, use_container_width=True)
+                    if not stats_by_genre.empty:
+                        st.subheader("Thống kê theo thể loại")
+                        st.dataframe(stats_by_genre, use_container_width=True)
+                    # Lưu bảng thống kê (theo checklist nghiệm thu)
+                    try:
+                        stats_overall.to_csv(
+                            "data/results2.csv", index=True, encoding="utf-8-sig"
+                        )
+                        st.caption("Đã lưu bảng thống kê vào data/results2.csv")
+                    except Exception as exc:
+                        st.warning(f"Không lưu được data/results2.csv: {exc}")
+                except Exception as exc:
+                    st.error(f"Lỗi khi tính thống kê cơ bản: {exc}")
 
-        # Thêm 2 dòng này ngay bên dưới để đảm bảo dữ liệu là số, đề phòng file CSV bị lỗi định dạng chữ:
-        df["Rating"] = pd.to_numeric(df["Rating"], errors="coerce")
-        df["Revenue"] = pd.to_numeric(df["Revenue"], errors="coerce")
-        
-        try:
-            # Gọi hàm vẽ bạn đã viết ở src/visualizer.py
-            fig_hist = plot_histogram(df, col_to_plot)
-            st.pyplot(fig_hist)
-        except Exception as e:
-            st.error(f"Lỗi khi vẽ biểu đồ: {e}")
+                st.divider()
+
+                # --- 2. Phim cao nhất / thấp nhất theo chỉ số ---
+                st.subheader("2. Phim cao nhất / thấp nhất theo chỉ số")
+                column = st.selectbox("Chọn chỉ số", stat_cols)
+                try:
+                    top_movies, bottom_movies = get_top_bottom_movies(
+                        df, column, top_n=3
+                    )
+                    col_a, col_b = st.columns(2)
+                    with col_a:
+                        st.subheader(f"Top 3 cao nhất ({column})")
+                        st.dataframe(top_movies, use_container_width=True)
+                    with col_b:
+                        st.subheader(f"Top 3 thấp nhất ({column})")
+                        st.dataframe(bottom_movies, use_container_width=True)
+                except Exception as exc:
+                    st.error(f"Lỗi khi tìm phim cực trị: {exc}")
+
+                st.divider()
+
+                # --- 3. Biểu đồ phân phối ---
+                st.subheader(f"3. Biểu đồ phân phối: {column}")
+                try:
+                    fig = plot_histogram(df, column)
+                    st.pyplot(fig)
+                    plt.close(fig)
+                except Exception as exc:
+                    st.error(f"Lỗi khi vẽ biểu đồ: {exc}")
 
 
 elif section == "Clustering & Radar Chart (Part III)":
