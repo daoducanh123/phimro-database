@@ -6,6 +6,7 @@ import pandas as pd
 # Các cột số có ý nghĩa phân tích
 STAT_COLUMNS = ["Duration", "Rating", "Budget", "Revenue"]
 
+
 def calculate_basic_stats(df):
     """Tính trung bình, trung vị và độ lệch chuẩn của các cột số.
 
@@ -13,8 +14,12 @@ def calculate_basic_stats(df):
         df (pandas.DataFrame): Dữ liệu phim đã làm sạch.
 
     Trả về khi hoàn thiện:
-        pandas.DataFrame: Mỗi hàng ứng với một cột số; các cột kết quả
-        là Mean, Median và Std; chỉ mục mang tên column.
+        tuple[pandas.DataFrame, pandas.DataFrame]: (overall, by_genre).
+        overall: mỗi hàng là một cột số; các cột là Mean, Median, Std;
+        chỉ mục mang tên column.
+        by_genre: thống kê theo từng thể loại (cột MultiIndex dạng
+        (tên cột, mean/median/std)); phim đa thể loại được tính vào
+        từng thể loại của nó.
 
     Công việc cần triển khai:
         - Chọn cột số có ý nghĩa phân tích, không dùng mã định danh phim.
@@ -25,25 +30,40 @@ def calculate_basic_stats(df):
           để giữ tên các cột được thống kê.
     """
     cols = [c for c in STAT_COLUMNS if df is not None and c in df.columns]
-    
-    # Đầu vào rỗng hoặc không có cột số -> bảng rỗng cùng cấu trúc
+
+    # Đầu vào rỗng hoặc không có cột số -> hai bảng rỗng
     if df is None or df.empty or not cols:
-        empty = pd.DataFrame(columns = ["Mean", "Median", "Std"])
+        empty = pd.DataFrame(columns=["Mean", "Median", "Std"])
         empty.index.name = "column"
-        return empty
+        return empty, pd.DataFrame()
+
     # Ép kiểu số trên bản sao: "N/a" -> NaN, inf -> NaN
-    numeric = df[cols].apply(pd.to_numeric, errors = "coerce")
+    numeric = df[cols].apply(pd.to_numeric, errors="coerce")
     numeric = numeric.replace([np.inf, -np.inf], np.nan)
 
-    result = pd.DataFrame({
+    # 1. Thống kê toàn bộ dữ liệu
+    overall = pd.DataFrame({
         "Mean": numeric.mean(),
         "Median": numeric.median(),
-        "Std": numeric.std(ddof = 1), # NaN nếu chỉ có 1 quan sát
+        "Std": numeric.std(ddof=1),  # NaN nếu chỉ có 1 quan sát
     })
-    result.index.name = "column"
-    return result
-    
-                        
+    overall.index.name = "column"
+
+    # 2. Thống kê theo thể loại (phim đa thể loại tách bằng ",")
+    if "Genre" not in df.columns:
+        return overall, pd.DataFrame()
+
+    genres = (
+        df["Genre"].fillna("Unknown").astype(str).str.split(",")
+        .explode().str.strip().rename("Genre")
+    )
+    # join theo chỉ mục: một phim nhiều thể loại -> nhiều dòng
+    expanded = numeric.join(genres, how="inner")
+    by_genre = expanded.groupby("Genre")[cols].agg(["mean", "median", "std"])
+
+    return overall, by_genre
+
+
 def get_top_bottom_movies(df, column, top_n=3):
     """Tìm tất cả phim có giá trị lớn nhất và nhỏ nhất trong một cột.
 
@@ -64,14 +84,17 @@ def get_top_bottom_movies(df, column, top_n=3):
     """
     if "Title" not in df.columns or column not in df.columns:
         raise ValueError(f"Thiếu cột 'Title' hoặc '{column}' trong dữ liệu.")
-    values = pd.to_numeric(df[column], errors = "coerce")
+
+    values = pd.to_numeric(df[column], errors="coerce")
     values = values.replace([np.inf, -np.inf], np.nan)
 
     data = pd.DataFrame({"Title": df["Title"], column: values})
-    data = data.dropna(subset = [column]) # bỏ giá trị thiếu
-    if data.empty: # không có giá trị hợp lệ
-        empty = pd.DataFrame(columns = ["Title", column])
+    data = data.dropna(subset=[column])  # bỏ giá trị thiếu
+
+    if data.empty:  # không có giá trị hợp lệ
+        empty = pd.DataFrame(columns=["Title", column])
         return empty, empty.copy()
+
     top_movies = data.nlargest(top_n, column)
     bottom_movies = data.nsmallest(top_n, column)
     return top_movies, bottom_movies
