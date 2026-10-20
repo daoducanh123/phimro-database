@@ -231,6 +231,17 @@ def train_revenue_prediction_model(df):
     if not numeric_cols and not categorical_cols:
         raise ValueError("Không có đặc trưng nào khả dụng để huấn luyện.")
 
+    # --- Feature engineering: log-transform + tương tác ---
+    if "Budget_USD" in data.columns:
+        data["log_Budget_USD"] = np.log1p(data["Budget_USD"].fillna(0))
+        numeric_cols.append("log_Budget_USD")
+    if "Votes" in data.columns:
+        data["log_Votes"] = np.log1p(data["Votes"].fillna(0))
+        numeric_cols.append("log_Votes")
+    if "Budget_USD" in data.columns and "IMDb_Rating" in data.columns:
+        data["Budget_x_Rating"] = data["Budget_USD"] * data["IMDb_Rating"]
+        numeric_cols.append("Budget_x_Rating")
+
     y = (
         pd.to_numeric(df[target_col], errors="coerce")
         .replace([np.inf, -np.inf], np.nan)
@@ -274,12 +285,13 @@ def train_revenue_prediction_model(df):
     model = Pipeline([
         ("preprocessor", preprocessor),
         ("regressor", RandomForestRegressor(
-            n_estimators=200, random_state=42, n_jobs=-1
+            n_estimators=300, random_state=42, n_jobs=-1,
+            max_depth=15, min_samples_leaf=3, max_features="sqrt"
         )),
     ])
     model.fit(X_train, y_train)
 
-    # Đánh giá trên tập kiểm tra
+    # Đánh giá trên tập kiểm tra (thang USD gốc)
     y_pred = model.predict(X_test)
     model.metrics_ = {
         "MAE": float(mean_absolute_error(y_test, y_pred)),
@@ -288,5 +300,51 @@ def train_revenue_prediction_model(df):
         "n_train": int(len(X_train)),
         "n_test": int(len(X_test)),
     }
+
+    # Baseline đơn giản: dự đoán trung bình / trung vị doanh thu
+    baseline_mean = np.full_like(y_test, np.mean(y_train))
+    baseline_median = np.full_like(y_test, np.median(y_train))
+    model.baseline_ = {
+        "mean_R2": float(r2_score(y_test, baseline_mean)),
+        "median_R2": float(r2_score(y_test, baseline_median)),
+        "mean_MAE": float(mean_absolute_error(y_test, baseline_mean)),
+        "median_MAE": float(mean_absolute_error(y_test, baseline_median)),
+    }
+
     model.feature_columns_ = numeric_cols + categorical_cols
+    model.target_log_transformed_ = False
     return model
+
+
+def predict_revenue(model, X_raw):
+    """Dự đoán doanh thu từ DataFrame đặc trưng thô (chưa biến đổi).
+
+    Áp dụng cùng các biến đổi log và tương tác như lúc huấn luyện,
+    rồi gọi model.predict() để trả về doanh thu (USD).
+
+    Tham số:
+        model: Pipeline đã huấn luyện từ train_revenue_prediction_model.
+        X_raw: pandas.DataFrame với cột thô (Budget_USD, IMDb_Rating,
+               Duration_min, Genre, Votes...).
+
+    Trả về:
+        numpy.ndarray: Doanh thu dự đoán (USD).
+    """
+    if not isinstance(X_raw, pd.DataFrame):
+        raise TypeError("X_raw phải là pandas.DataFrame.")
+
+    X = X_raw.copy()
+    if "Budget_USD" in X.columns:
+        X["log_Budget_USD"] = np.log1p(X["Budget_USD"].fillna(0))
+    if "Votes" in X.columns:
+        X["log_Votes"] = np.log1p(X["Votes"].fillna(0))
+    if "Budget_USD" in X.columns and "IMDb_Rating" in X.columns:
+        X["Budget_x_Rating"] = X["Budget_USD"] * X["IMDb_Rating"]
+
+    # Chỉ giữ các cột mà mô hình mong đợi
+    missing = [c for c in model.feature_columns_ if c not in X.columns]
+    if missing:
+        raise ValueError(f"Thiếu cột đặc trưng: {', '.join(missing)}")
+    X = X[model.feature_columns_]
+
+    return model.predict(X)

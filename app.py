@@ -11,6 +11,7 @@ from src.models import (
     run_kmeans_clustering,
     run_pca_reduction,
     train_revenue_prediction_model,
+    predict_revenue,
 )
 from src.statistics_eda import calculate_basic_stats, get_top_bottom_movies
 from src.visualizer import plot_histogram, plot_radar_chart
@@ -408,6 +409,13 @@ elif section == "Phần IV: Dự đoán Doanh thu phòng vé":
             st.caption(
                 "Đặc trưng đầu vào: " + ", ".join(model.feature_columns_)
             )
+            if hasattr(model, "baseline_") and model.baseline_:
+                b = model.baseline_
+                st.caption(
+                    f"Baseline: R² trung bình = {b['mean_R2']:.3f}, "
+                    f"R² trung vị = {b['median_R2']:.3f} "
+                    f"(mô hình R² = {metrics['R2']:.3f})"
+                )
 
             st.subheader("Dự đoán doanh thu cho phim mới")
             with st.form("revenue_form"):
@@ -426,7 +434,7 @@ elif section == "Phần IV: Dự đoán Doanh thu phòng vé":
                 genre = st.text_input("Thể loại (Genre)", "Drama")
                 # Ô Votes chỉ xuất hiện nếu mô hình dùng cột này
                 votes = 0
-                if "Votes" in model.feature_columns_:
+                if "Votes" in model.feature_columns_ or "log_Votes" in model.feature_columns_:
                     votes = st.number_input(
                         "Số lượt đánh giá (Votes)", 0, 10_000_000, 1_000
                     )
@@ -440,9 +448,8 @@ elif section == "Phần IV: Dự đoán Doanh thu phòng vé":
                     "Genre": genre,
                     "Votes": votes,
                 }
-                # Pipeline yêu cầu tên cột chuẩn nên đổi tên tại đây
-                features = pd.DataFrame([row])[model.feature_columns_]
-                prediction = float(model.predict(features)[0])
+                # Dự đoán qua predict_revenue (xử lý log-transform nội bộ)
+                prediction = float(predict_revenue(model, pd.DataFrame([row]))[0])
                 st.success(
                     f"Doanh thu dự đoán: **${prediction:,.0f}** USD"
                 )
