@@ -324,6 +324,20 @@ elif section == "Phần III: Học máy - Phân cụm & So sánh":
                     plt.close(fig)
 
                     with detail_column:
+                        # st.metric có cỡ chữ mặc định lớn cho cột hẹp của
+                        # phần radar; thu nhỏ và cho phép giá trị dài xuống dòng.
+                        st.markdown(
+                            """
+                            <style>
+                            [data-testid="stMetricValue"] {
+                                font-size: clamp(1.25rem, 2.8vw, 1.65rem);
+                                white-space: normal;
+                                overflow-wrap: anywhere;
+                            }
+                            </style>
+                            """,
+                            unsafe_allow_html=True,
+                        )
                         st.markdown("#### Dữ liệu gốc")
                         selected_rows = []
                         titles = radar_df["Title"].astype(str).str.strip()
