@@ -11,32 +11,29 @@ import re
 import numpy as np
 import pandas as pd
 
-# 9 cột chuẩn đầu ra theo README mục 5.
+# 9 cột chuẩn đầu ra theo README mục 5 (giữ nguyên tên từ dữ liệu thô).
 _TARGET_COLUMNS = [
     "Title",
     "Year",
     "Genre",
-    "Duration",
-    "Rating",
-    "Budget",
-    "Revenue",
+    "Duration_min",
+    "IMDb_Rating",
+    "Budget_USD",
+    "Revenue_USD",
     "Director",
     "Cast",
 ]
 
-# Ánh xạ cột dữ liệu thô (collect_data.py) về tên rút gọn dùng nội bộ.
-_RENAME_MAP = {
-    "Release_Year": "Year",
-    "IMDb_Rating": "Rating",
-    "Budget_USD": "Budget",
-    "Revenue_USD": "Revenue",
-    "Duration_min": "Duration",
-    "Actors": "Cast",
-}
+# Không đổi tên cột — giữ nguyên tên từ dữ liệu thù để các module khác
+# (statistics_eda, visualizer, models) có thể tra cứu theo tên chuẩn.
+_RENAME_MAP = {}
 
 # Trong dữ liệu TMDB, 0 ở các cột này biểu thị "chưa công bố/không có dữ liệu",
 # không phải một ngân sách, doanh thu, thời lượng hay điểm đánh giá có ý nghĩa.
-_NUMERIC_COLUMNS = ("Year", "Duration", "Rating", "Budget", "Revenue")
+_NUMERIC_COLUMNS = ("Year", "Duration_min", "IMDb_Rating", "Budget_USD", "Revenue_USD")
+
+# Các cột bắt buộc phải có trong dữ liệu thô; thiếu cột nào sẽ ném KeyError.
+_ESSENTIAL_COLUMNS = ("Budget_USD",)
 
 
 def _clean_genre(val):
@@ -93,6 +90,11 @@ def load_and_clean_data(raw_file_path):
 
     # 1. Đọc file dữ liệu thô.
     df = pd.read_csv(path)
+
+    # Kiểm tra các cột thiết yếu có mặt; thiếu cột nào sẽ ném KeyError.
+    missing = [c for c in _ESSENTIAL_COLUMNS if c not in df.columns]
+    if missing:
+        raise KeyError(f"Thiếu cột thiết yếu: {', '.join(missing)}")
 
     # 2. Đổi tên cột về chuẩn.
     df = df.rename(columns=_RENAME_MAP)

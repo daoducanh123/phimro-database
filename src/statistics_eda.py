@@ -3,8 +3,8 @@
 import numpy as np
 import pandas as pd
 
-# Các cột số có ý nghĩa phân tích
-STAT_COLUMNS = ["Duration", "Rating", "Budget", "Revenue"]
+# Các cột số có ý nghĩa phân tích (tên chuẩn từ dữ liệu thô).
+STAT_COLUMNS = ["Duration_min", "IMDb_Rating", "Budget_USD", "Revenue_USD"]
 
 
 def calculate_basic_stats(df):

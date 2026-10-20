@@ -131,7 +131,7 @@ elif section == "Phần II: Thống kê & Phân bố":
         st.error("Chưa có dữ liệu. Hãy quay lại 'Phần I' để chạy làm sạch hoặc tải file lên trước.")
     else:
             # Cột số khả dụng cho thống kê
-            stat_cols = [c for c in ("Duration", "Rating", "Budget", "Revenue") if c in df.columns]
+            stat_cols = [c for c in ("Duration_min", "IMDb_Rating", "Budget_USD", "Revenue_USD") if c in df.columns]
             if not stat_cols:
                 st.warning("Không tìm thấy cột số nào để thống kê trong dữ liệu.")
             else:
@@ -286,7 +286,7 @@ elif section == "Phần III: Học máy - Phân cụm & So sánh":
             st.subheader("2. So sánh hai phim bằng biểu đồ radar")
 
             radar_df = df.dropna(
-                subset=["Rating", "Budget", "Revenue", "Duration"]
+                subset=["IMDb_Rating", "Budget_USD", "Revenue_USD", "Duration_min"]
             ).copy()
 
             # Hàm radar chủ động báo lỗi với title trùng; loại khỏi danh sách chọn UI.
@@ -357,15 +357,15 @@ elif section == "Phần III: Học máy - Phân cụm & So sánh":
                             metric_left, metric_right = st.columns(2)
                             metric_left.metric(
                                 "Điểm TMDB",
-                                f"{row['Rating']:.1f}".replace(".", ",") + " / 10",
+                                f"{row['IMDb_Rating']:.1f}".replace(".", ",") + " / 10",
                             )
                             metric_right.metric(
                                 "Thời lượng",
-                                f"{row['Duration']:,.0f}".replace(",", ".") + " phút",
+                                f"{row['Duration_min']:,.0f}".replace(",", ".") + " phút",
                             )
                             metric_left, metric_right = st.columns(2)
-                            metric_left.metric("Kinh phí", format_usd(row["Budget"]))
-                            metric_right.metric("Doanh thu", format_usd(row["Revenue"]))
+                            metric_left.metric("Kinh phí", format_usd(row["Budget_USD"]))
+                            metric_right.metric("Doanh thu", format_usd(row["Revenue_USD"]))
                             st.divider()
                 except ValueError as exc:
                     st.error(str(exc))
