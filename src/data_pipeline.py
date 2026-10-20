@@ -34,6 +34,10 @@ _RENAME_MAP = {
     "Actors": "Cast",
 }
 
+# Trong dữ liệu TMDB, 0 ở các cột này biểu thị "chưa công bố/không có dữ liệu",
+# không phải một ngân sách, doanh thu, thời lượng hay điểm đánh giá có ý nghĩa.
+_NUMERIC_COLUMNS = ("Year", "Duration", "Rating", "Budget", "Revenue")
+
 
 def _clean_genre(val):
     """Trích tên thể loại từ chuỗi JSON cột Genre (có fallback regex)."""
@@ -77,7 +81,7 @@ def load_and_clean_data(raw_file_path):
         1. Đọc CSV bằng pandas.
         2. Đổi tên cột thô về tên rút gọn chuẩn.
         3. Parse Genre từ chuỗi JSON thành "Hành động, Phiêu lưu".
-        4. Ép Budget/Revenue về float; chuỗi lỗi thành NaN.
+        4. Ép cột số về float; 0/chuỗi lỗi thành NaN theo quy ước TMDB.
         5. Loại trùng lặp theo (Title, Year); sắp xếp Title A-Z, Year giảm dần.
         6. Chỉ giữ 9 cột chuẩn có mặt trong dữ liệu.
         7. Xuất data/cleaned/results.csv (utf-8-sig) và trả về DataFrame.
@@ -97,10 +101,18 @@ def load_and_clean_data(raw_file_path):
     if "Genre" in df.columns:
         df["Genre"] = df["Genre"].apply(_clean_genre)
 
-    # 4. Ép kiểu tiền tệ về float.
+    # 4. Ép Budget/Revenue về float. _clean_currency cũng đổi 0 thành NaN.
     for col in ("Budget", "Revenue"):
         if col in df.columns:
             df[col] = df[col].apply(_clean_currency)
+
+    # TMDB dùng 0 khi chưa có thông tin runtime/vote_average (và đôi khi
+    # năm phát hành). Chuẩn hóa mọi cột số về float và coi 0 là thiếu dữ liệu.
+    # Dùng tên cột *sau* khi _RENAME_MAP đã được áp dụng; không dùng các tên
+    # gốc như Budget_USD hoặc Duration_min ở bước này.
+    for col in _NUMERIC_COLUMNS:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").replace(0, np.nan)
 
     # 5. Loại trùng lặp theo (Title, Year) rồi sắp xếp.
     if {"Title", "Year"}.issubset(df.columns):

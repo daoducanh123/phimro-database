@@ -42,6 +42,24 @@ def get_data():
     return load_cleaned_data()
 
 
+def format_usd(value):
+    """Định dạng tiền USD ngắn gọn, phù hợp phần dữ liệu gốc của radar."""
+    value = pd.to_numeric(value, errors="coerce")
+    if pd.isna(value):
+        return "Không có dữ liệu"
+    if abs(value) >= 1_000_000_000:
+        return f"{value / 1_000_000_000:.2f}".replace(".", ",") + " tỷ USD"
+    if abs(value) >= 1_000_000:
+        return f"{value / 1_000_000:,.0f}".replace(",", ".") + " triệu USD"
+    return f"{value:,.0f}".replace(",", ".") + " USD"
+
+
+def format_year(value):
+    """Định dạng năm phát hành nếu dữ liệu có sẵn."""
+    value = pd.to_numeric(value, errors="coerce")
+    return str(int(value)) if pd.notna(value) else "Không rõ năm"
+
+
 
 # Các hàm khác được nhập sẵn để từng nhóm tích hợp khi hoàn thành.
 st.set_page_config(
@@ -56,14 +74,14 @@ st.caption("Dự án phân tích dữ liệu IMDb/TMDB")
 section = st.sidebar.radio(
     "Điều hướng",
     (
-        "Overview & Data Cleaning (Part I)",
-        "Statistics & Distribution (Part II)",
-        "Clustering & Radar Chart (Part III)",
-        "Revenue Prediction (Part IV)",
+        "Phần I: Tổng quan & Xử lý Dữ liệu",
+        "Phần II: Thống kê & Phân bố",
+        "Phần III: Học máy - Phân cụm & So sánh",
+        "Phần IV: Dự đoán Doanh thu phòng vé",
     ),
 )
 
-if section == "Overview & Data Cleaning (Part I)":
+if section == "Phần I: Tổng quan & Xử lý Dữ liệu":
     st.header("Phần I: Tổng quan và làm sạch dữ liệu")
 
     # Nút làm sạch file thô mặc định có sẵn trong repo (không cần upload)
@@ -88,15 +106,6 @@ if section == "Overview & Data Cleaning (Part I)":
     else:
         st.warning("Chưa có file thô. Hãy chạy `python src/collect_data.py`.")
 
-    # Hoặc tự tải file thô của riêng mình lên
-    st.subheader("2. Hoặc tải file thô của bạn (CSV)")
-    raw_file = st.file_uploader("Chọn file dữ liệu thô (CSV)", type=["csv"])
-    if raw_file is not None:
-        try:
-            st.session_state["df"] = load_and_clean_data(raw_file)
-            st.success("Đã làm sạch file tải lên!")
-        except Exception as exc:
-            st.error(f"Không đọc được file: {exc}")
 
     # Hiển thị kết quả nếu đã có dữ liệu sạch
     df_raw = st.session_state.get("df")
@@ -112,7 +121,7 @@ if section == "Overview & Data Cleaning (Part I)":
         st.subheader("Xem trước dữ liệu đã làm sạch")
         st.dataframe(df_raw.head(50), use_container_width=True)
 
-elif section == "Statistics & Distribution (Part II)":
+elif section == "Phần II: Thống kê & Phân bố":
     st.header("Phần II: Thống kê và phân phối")
     
     # 1. Lấy dữ liệu từ session (nếu đã làm sạch ở Phần I)
@@ -129,17 +138,27 @@ elif section == "Statistics & Distribution (Part II)":
                 # --- 1. Bảng thống kê cơ bản ---
                 st.subheader("1. Thống kê mô tả cơ bản")
                 try:
+                    st.subheader("Thống kê chung")
                     stats_overall, stats_by_genre = calculate_basic_stats(df)
                     st.dataframe(stats_overall, use_container_width=True)
                     if not stats_by_genre.empty:
                         st.subheader("Thống kê theo thể loại")
                         st.dataframe(stats_by_genre, use_container_width=True)
-                    # Lưu bảng thống kê (theo checklist nghiệm thu)
+                    # Lưu hai artifact: thống kê chung và bảng genre phẳng,
+                    # dùng trực tiếp được trong Excel/báo cáo.
+                    stats_by_genre.to_csv(
+                        "data/results2_by_genre.csv",
+                        index=True,
+                        encoding="utf-8-sig",
+                    )
                     try:
                         stats_overall.to_csv(
                             "data/results2.csv", index=True, encoding="utf-8-sig"
                         )
-                        st.caption("Đã lưu bảng thống kê vào data/results2.csv")
+                        st.caption(
+                            "Đã lưu data/results2.csv và "
+                            "data/results2_by_genre.csv"
+                        )
                     except Exception as exc:
                         st.warning(f"Không lưu được data/results2.csv: {exc}")
                 except Exception as exc:
@@ -176,7 +195,7 @@ elif section == "Statistics & Distribution (Part II)":
                     st.error(f"Lỗi khi vẽ biểu đồ: {exc}")
 
 
-elif section == "Clustering & Radar Chart (Part III)":
+elif section == "Phần III: Học máy - Phân cụm & So sánh":
     st.header("Phần III: Phân cụm và biểu đồ radar")
     df = load_cleaned_data()
     if df is None:
@@ -207,38 +226,138 @@ elif section == "Clustering & Radar Chart (Part III)":
                 .rename_axis("Cluster")
                 .reset_index(name="Số phim")
             )
-            st.subheader("Kết quả phân cụm")
-            st.dataframe(counts, use_container_width=True)
-            st.bar_chart(counts.set_index("Cluster"))
+            st.subheader("1. Kết quả phân cụm")
+
+            def find_cluster_column(*candidates):
+                return next((col for col in candidates if col in clustered.columns), None)
+
+            rating_col = find_cluster_column("Rating", "IMDb_Rating")
+            budget_col = find_cluster_column("Budget", "Budget_USD")
+            revenue_col = find_cluster_column("Revenue", "Revenue_USD")
+            cluster_summary = clustered.groupby("Cluster").agg(
+                Số_phim=("Cluster", "size"),
+                Rating_trung_vị=(rating_col, "median"),
+                Kinh_phí_trung_vị=(budget_col, "median"),
+                Doanh_thu_trung_vị=(revenue_col, "median"),
+            ).reset_index()
+            cluster_summary["Rating_trung_vị"] = cluster_summary[
+                "Rating_trung_vị"
+            ].map(lambda value: f"{value:.1f}".replace(".", ",") + " / 10")
+            for column in ("Kinh_phí_trung_vị", "Doanh_thu_trung_vị"):
+                cluster_summary[column] = cluster_summary[column].map(format_usd)
 
             # Bản đồ cụm 2D sau khi giảm chiều PCA
             ev = pca_coords.attrs["explained_variance_ratio"]
-            fig, ax = plt.subplots(figsize=(8, 5))
-            points = ax.scatter(
-                pca_coords.iloc[:, 0],
-                pca_coords.iloc[:, 1],
-                c=clustered.loc[pca_coords.index, "Cluster"],
-                cmap="tab10",
-                s=14,
-                alpha=0.75,
-            )
-            ax.set_xlabel(f"Trục X (PCA 1) — {ev[0]:.1%} phương sai")
-            ax.set_ylabel(f"Trục Y (PCA 2) — {ev[1]:.1%} phương sai")
-            ax.set_title(f"Bản đồ cụm K-means (K={n_clusters})")
-            fig.colorbar(points, ax=ax, label="Cluster")
-            st.pyplot(fig)
+            fig, ax = plt.subplots(figsize=(8, 5.5))
+            palette = plt.get_cmap("tab10", n_clusters)
+            for cluster_id in sorted(clustered["Cluster"].unique()):
+                mask = clustered.loc[pca_coords.index, "Cluster"] == cluster_id
+                ax.scatter(
+                    pca_coords.loc[mask, pca_coords.columns[0]],
+                    pca_coords.loc[mask, pca_coords.columns[1]],
+                    color=palette(cluster_id),
+                    s=16,
+                    alpha=0.72,
+                    label=f"Cụm {cluster_id} · {int(mask.sum()):,} phim",
+                )
+            ax.set_xlabel(f"PCA 1 · giải thích {ev[0]:.1%} phương sai")
+            ax.set_ylabel(f"PCA 2 · giải thích {ev[1]:.1%} phương sai")
+            ax.set_title(f"Bản đồ phân cụm phim (K = {n_clusters})")
+            ax.grid(alpha=0.25)
+            ax.legend(title="Nhóm phim", frameon=False, loc="best")
+            fig.tight_layout()
+
+            map_column, summary_column = st.columns([1.2, 0.8])
+            with map_column:
+                st.caption(
+                    "Mỗi điểm là một phim; vị trí gần nhau biểu thị hồ sơ "
+                    "Budget, Revenue và Rating tương đồng."
+                )
+                st.pyplot(fig, use_container_width=True)
+            with summary_column:
+                st.caption("Tóm tắt theo cụm bằng số liệu gốc (trung vị).")
+                st.dataframe(cluster_summary, hide_index=True, use_container_width=True)
             plt.close(fig)
 
             with st.expander("Xem bảng dữ liệu chi tiết (50 dòng đầu)"):
                 st.dataframe(table.head(50), use_container_width=True)
 
-            st.info(
-                "plot_radar_chart(df, movie1_name, movie2_name) đã "
-                "được Tổ 3 cài xong — Nhóm trưởng sẽ nối vào đây "
-                "sau khi rà soát."
+
+            st.subheader("2. So sánh hai phim bằng biểu đồ radar")
+
+            radar_df = df.dropna(
+                subset=["Rating", "Budget", "Revenue", "Duration"]
+            ).copy()
+
+            # Hàm radar chủ động báo lỗi với title trùng; loại khỏi danh sách chọn UI.
+            duplicate_titles = radar_df["Title"].duplicated(keep=False)
+            movie_options = sorted(
+                radar_df.loc[~duplicate_titles, "Title"]
+                .astype(str)
+                .str.strip()
+                .unique()
             )
 
-elif section == "Revenue Prediction (Part IV)":
+            col1, col2 = st.columns(2)
+            with col1:
+                movie1 = st.selectbox("Phim thứ nhất", movie_options, key="radar_movie_1")
+            with col2:
+                movie2 = st.selectbox(
+                    "Phim thứ hai",
+                    movie_options,
+                    index=1,
+                    key="radar_movie_2",
+                )
+
+            if movie1 == movie2:
+                st.warning("Hãy chọn hai phim khác nhau.")
+            else:
+                try:
+                    fig = plot_radar_chart(df, movie1, movie2)
+                    chart_column, detail_column = st.columns([1.2, 0.8])
+                    with chart_column:
+                        st.caption(
+                            "Radar thể hiện mức tương đối 0–100. "
+                            "Xem số liệu gốc có đơn vị ở bên phải."
+                        )
+                        st.pyplot(fig, use_container_width=True)
+                    plt.close(fig)
+
+                    with detail_column:
+                        st.markdown("#### Dữ liệu gốc")
+                        selected_rows = []
+                        titles = radar_df["Title"].astype(str).str.strip()
+                        for name in (movie1, movie2):
+                            selected_rows.append(
+                                radar_df.loc[titles == name].iloc[0]
+                            )
+
+                        for icon, movie, row in zip(
+                            ("🔵", "🔴"),
+                            (movie1, movie2),
+                            selected_rows,
+                        ):
+                            st.markdown(
+                                f"**{icon} {movie} ({format_year(row.get('Year'))})**"
+                            )
+                            metric_left, metric_right = st.columns(2)
+                            metric_left.metric(
+                                "Điểm TMDB",
+                                f"{row['Rating']:.1f}".replace(".", ",") + " / 10",
+                            )
+                            metric_right.metric(
+                                "Thời lượng",
+                                f"{row['Duration']:,.0f}".replace(",", ".") + " phút",
+                            )
+                            metric_left, metric_right = st.columns(2)
+                            metric_left.metric("Kinh phí", format_usd(row["Budget"]))
+                            metric_right.metric("Doanh thu", format_usd(row["Revenue"]))
+                            st.divider()
+                except ValueError as exc:
+                    st.error(str(exc))
+
+
+elif section == "Phần IV: Dự đoán Doanh thu phòng vé":
     st.header("Phần IV: Dự đoán doanh thu")
     df = load_cleaned_data()
     if df is None:

@@ -17,9 +17,10 @@ def calculate_basic_stats(df):
         tuple[pandas.DataFrame, pandas.DataFrame]: (overall, by_genre).
         overall: mỗi hàng là một cột số; các cột là Mean, Median, Std;
         chỉ mục mang tên column.
-        by_genre: thống kê theo từng thể loại (cột MultiIndex dạng
-        (tên cột, mean/median/std)); phim đa thể loại được tính vào
-        từng thể loại của nó.
+        by_genre: thống kê theo từng thể loại với các cột phẳng, ví dụ
+        Budget_mean, Budget_median, Budget_std. Cột Movie_Count là số
+        phim thuộc thể loại đó; phim đa thể loại được tính vào từng thể
+        loại của nó.
 
     Công việc cần triển khai:
         - Chọn cột số có ý nghĩa phân tích, không dùng mã định danh phim.
@@ -59,7 +60,20 @@ def calculate_basic_stats(df):
     )
     # join theo chỉ mục: một phim nhiều thể loại -> nhiều dòng
     expanded = numeric.join(genres, how="inner")
-    by_genre = expanded.groupby("Genre")[cols].agg(["mean", "median", "std"])
+    grouped = expanded.groupby("Genre")
+    by_genre = grouped[cols].agg(["mean", "median", "std"])
+
+    # Gộp hai tầng tên cột để bảng xuất CSV/Excel chỉ có một hàng tiêu đề,
+    # ví dụ: Budget_mean, Budget_median, Budget_std.
+    by_genre.columns = [
+        f"{metric}_{statistic}"
+        for metric, statistic in by_genre.columns.to_flat_index()
+    ]
+    by_genre.insert(
+        0,
+        "Movie_Count",
+        grouped.size().reindex(by_genre.index).astype("int64"),
+    )
 
     return overall, by_genre
 
