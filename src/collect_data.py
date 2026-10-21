@@ -1,3 +1,4 @@
+```python
 import os
 import json
 import requests
@@ -87,6 +88,10 @@ def main():
 
     df["Duration_min"] = df["runtime"]
     df["IMDb_Rating"] = df["vote_average"]
+
+    # Them so luot binh chon tu du lieu TMDB
+    df["Votes"] = df["vote_count"]
+
     df["Budget_USD"] = df["budget"]
     df["Revenue_USD"] = df["revenue"]
     df["Actors"] = df["cast"].apply(lay_dien_vien)
@@ -102,6 +107,7 @@ def main():
         "Genre",
         "Duration_min",
         "IMDb_Rating",
+        "Votes",
         "Budget_USD",
         "Revenue_USD",
         "Director",
@@ -127,3 +133,4 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         print("\nCo loi xay ra:", e)
+```

@@ -18,7 +18,7 @@ py -3.13 -m pip install pandas requests
 Chờ cài đặt hoàn tất.
 
 ## Bước 3: Mở CMD tại thư mục project
-- Mở thư mục `D:\phimro-database`.
+- Mở thư mục `C:\Users\daodu\Desktop\phimro-database`.
 - Nhấn vào thanh địa chỉ phía trên cửa sổ File Explorer.
 - Gõ `cmd`, nhấn Enter.
 
