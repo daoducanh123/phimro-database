@@ -1,3 +1,4 @@
+```python
 import os
 import json
 import requests
@@ -132,3 +133,4 @@ if __name__ == "__main__":
         main()
     except Exception as e:
         print("\nCo loi xay ra:", e)
+```
