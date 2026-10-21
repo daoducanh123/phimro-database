@@ -1,0 +1,51 @@
+# HƯỚNG DẪN CHẠY FILE THU THẬP DỮ LIỆU PHIM
+
+## Bước 1: Mở CMD
+- Nhấn `Windows + R`.
+- Gõ `cmd`, nhấn Enter.
+
+## Bước 2: Cài thư viện
+Copy từng lệnh dưới đây vào CMD rồi nhấn Enter:
+
+```cmd
+py -3.13 -m ensurepip --upgrade
+```
+
+```cmd
+py -3.13 -m pip install pandas requests
+```
+
+Chờ cài đặt hoàn tất.
+
+## Bước 3: Mở CMD tại thư mục project
+- Mở thư mục `D:\phimro-database`.
+- Nhấn vào thanh địa chỉ phía trên cửa sổ File Explorer.
+- Gõ `cmd`, nhấn Enter.
+
+CMD sẽ mở ngay tại thư mục project.
+
+## Bước 4: Chạy file thu thập dữ liệu
+Nhập lệnh:
+
+```cmd
+py -3.13 src\collect_data.py
+```
+
+Chờ chương trình chạy xong. Nếu thành công, CMD sẽ thông báo hoàn thành và số lượng phim.
+
+## Bước 5: Kiểm tra kết quả
+Mở thư mục:
+
+`D:\phimro-database\data\collected\`
+
+Kiểm tra xem có đủ 3 file sau không:
+
+1. `tmdb_5000_movies.csv` — dữ liệu phim gốc.
+2. `tmdb_5000_credits.csv` — dữ liệu diễn viên và ê-kíp.
+3. `resultsRaw_completed.csv` — dữ liệu đã ghép và chuyển đổi cột, dùng làm đầu vào cho code clean của Tâm.
+
+## Bước 6: Nếu gặp lỗi
+- Nếu báo `No module named 'requests'` hoặc `No module named 'pandas'`, chạy lại lệnh cài thư viện ở Bước 2.
+- Nếu báo lỗi tải dữ liệu, kiểm tra kết nối Internet.
+- Nếu có lỗi khác, copy toàn bộ thông báo trong CMD để kiểm tra.
+
