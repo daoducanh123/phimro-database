@@ -1,0 +1,70 @@
+1. CÁCH CHẠY FILE COLLECT_DATA.PY
+
+Cách 1: Chạy bằng CMD
+
+- Mở thư mục project phimro-database.
+- Nhấn vào thanh địa chỉ của File Explorer, gõ cmd rồi nhấn Enter.
+- Nhập lệnh sau:
+
+  py -3.13 src\collect_data.py
+
+- Nhấn Enter và chờ chương trình chạy hoàn tất.
+
+Cách 2: Chạy trực tiếp bằng cách nhấn đúp vào file
+
+- Mở thư mục src trong project.
+- Nhấn đúp vào file collect_data.py.
+- Nếu Python được cấu hình đúng, chương trình sẽ bắt đầu chạy.
+- Lưu ý: cửa sổ có thể tự đóng sau khi chạy xong hoặc gặp lỗi. Nếu cần kiểm tra lỗi, nên sử dụng Cách 1.
+
+2. BA FILE ĐƯỢC TẠO RA
+
+Các file được lưu tại thư mục:
+
+data/collected/
+
+File 1: tmdb_5000_movies.csv
+
+- Chứa dữ liệu phim gốc từ bộ dữ liệu TMDB 5000 Movie Dataset.
+- Bao gồm tên phim, ngày phát hành, thể loại, thời lượng, điểm đánh giá, ngân sách, doanh thu và số lượt bình chọn.
+
+File 2: tmdb_5000_credits.csv
+
+- Chứa dữ liệu diễn viên và ê-kíp sản xuất của phim.
+- Được sử dụng để lấy danh sách diễn viên và tên đạo diễn.
+
+File 3: resultsRaw_completed.csv
+
+- Là dữ liệu trung gian sau khi ghép hai file gốc và chuyển đổi các cột theo format của project.
+- Bao gồm các cột: Title, Release_Year, Genre, Duration_min, IMDb_Rating, Votes, Budget_USD, Revenue_USD, Director, Actors.
+- Cột Votes lấy từ vote_count của TMDB.
+- File này được sử dụng làm đầu vào cho bước làm sạch dữ liệu tiếp theo.
+
+4. QUY TRÌNH DỮ LIỆU
+
+collect_data.py
+       |
+       v
+Tải dữ liệu từ bộ TMDB 5000 Movie Dataset trên GitHub
+       |
+       v
+Tạo hai file dữ liệu gốc:
+- tmdb_5000_movies.csv
+- tmdb_5000_credits.csv
+       |
+       v
+Ghép dữ liệu phim, diễn viên và ê-kíp
+       |
+       v
+Xuất resultsRaw_completed.csv
+       |
+       v
+Chạy chương trình làm sạch dữ liệu
+       |
+       v
+data/cleaned/results.csv
+
+5. LƯU Ý
+
+- Cần kết nối Internet để tải dữ liệu từ GitHub.
+- Mỗi lần chạy collect_data.py, hai file dữ liệu gốc sẽ được tải lại và file resultsRaw_completed.csv sẽ được tạo lại
