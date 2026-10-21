@@ -54,12 +54,14 @@ def lay_dien_vien(cast):
     return ", ".join(name for name in names if name)
 
 
-def main():
+def main(download=True):
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    # 1. Tai hai file du lieu goc
-    for ten_file, url in FILES.items():
-        tai_file(ten_file, url)
+    # 1. Tải hai file dữ liệu gốc. download=False hữu ích khi tái tạo bảng
+    # trung gian từ các file TMDB đã tải sẵn, không cần gọi mạng lần nữa.
+    if download:
+        for ten_file, url in FILES.items():
+            tai_file(ten_file, url)
 
     # 2. Doc du lieu
     movies_path = os.path.join(
@@ -87,10 +89,7 @@ def main():
 
     df["Duration_min"] = df["runtime"]
     df["IMDb_Rating"] = df["vote_average"]
-
-    # Them so luot binh chon tu du lieu TMDB
     df["Votes"] = df["vote_count"]
-
     df["Budget_USD"] = df["budget"]
     df["Revenue_USD"] = df["revenue"]
     df["Actors"] = df["cast"].apply(lay_dien_vien)

@@ -16,6 +16,7 @@ _TARGET_COLUMNS = [
     "Title",
     "Year",
     "Genre",
+    "Votes",
     "Duration_min",
     "IMDb_Rating",
     "Budget_USD",
@@ -24,13 +25,16 @@ _TARGET_COLUMNS = [
     "Cast",
 ]
 
-# Không đổi tên cột — giữ nguyên tên từ dữ liệu thù để các module khác
-# (statistics_eda, visualizer, models) có thể tra cứu theo tên chuẩn.
-_RENAME_MAP = {}
+# Đưa tên cột chỉ có ở bảng trung gian về schema sạch thống nhất.
+# Các cột số chính giữ nguyên hậu tố đơn vị để models/visualizer tra cứu được.
+_RENAME_MAP = {
+    "Release_Year": "Year",
+    "Actors": "Cast",
+}
 
 # Trong dữ liệu TMDB, 0 ở các cột này biểu thị "chưa công bố/không có dữ liệu",
 # không phải một ngân sách, doanh thu, thời lượng hay điểm đánh giá có ý nghĩa.
-_NUMERIC_COLUMNS = ("Year", "Duration_min", "IMDb_Rating", "Budget_USD", "Revenue_USD")
+_NUMERIC_COLUMNS = ("Year", "Votes", "Duration_min", "IMDb_Rating", "Budget_USD", "Revenue_USD")
 
 # Các cột bắt buộc phải có trong dữ liệu thô; thiếu cột nào sẽ ném KeyError.
 _ESSENTIAL_COLUMNS = ("Budget_USD",)

@@ -12,6 +12,7 @@ from src.models import (
     run_pca_reduction,
     train_revenue_prediction_model,
     predict_revenue,
+    _prepare_cluster_features,
 )
 from src.statistics_eda import calculate_basic_stats, get_top_bottom_movies
 from src.visualizer import plot_histogram, plot_radar_chart
@@ -22,11 +23,13 @@ CLEANED_CSV = BASE_DIR / "data" / "cleaned" / "results.csv"
 
 
 @st.cache_data
-def load_cleaned_data():
+def load_cleaned_data(file_modified_at):
     """Đọc dữ liệu sạch cho các trang; trả về None nếu chưa có tệp.
 
-    Kết quả được cache để không đọc lại CSV sau mỗi lần tương tác.
+    Thời điểm sửa file là một phần của cache key, nên cache tự hết hiệu lực
+    khi Phần I ghi một phiên bản dữ liệu sạch mới.
     """
+    del file_modified_at  # Chỉ dùng để phân biệt phiên bản cache.
     if not CLEANED_CSV.exists():
         return None
     return pd.read_csv(CLEANED_CSV)
@@ -40,7 +43,9 @@ def get_data():
     """
     if "df" in st.session_state:
         return st.session_state["df"]
-    return load_cleaned_data()
+    if not CLEANED_CSV.exists():
+        return None
+    return load_cleaned_data(CLEANED_CSV.stat().st_mtime_ns)
 
 
 def format_usd(value):
@@ -99,6 +104,9 @@ if section == "Phần I: Tổng quan & Xử lý Dữ liệu":
             with st.spinner("Đang làm sạch..."):
                 try:
                     st.session_state["df"] = load_and_clean_data(default_raw)
+                    # File đã được ghi mới; bỏ kết quả đọc cũ để các phần
+                    # III/IV không sử dụng DataFrame đã cache từ lần trước.
+                    load_cleaned_data.clear()
                     st.success(
                         "Đã làm sạch và lưu ra data/cleaned/results.csv!"
                     )
@@ -111,14 +119,14 @@ if section == "Phần I: Tổng quan & Xử lý Dữ liệu":
     # Hiển thị kết quả nếu đã có dữ liệu sạch
     df_raw = st.session_state.get("df")
     if df_raw is None:
-        df_raw = load_cleaned_data()
+        df_raw = get_data()
     if df_raw is None:
         st.info("Chưa có dữ liệu. Hãy chạy làm sạch hoặc tải file thô lên.")
     else:
         col_a, col_b, col_c = st.columns(3)
         col_a.metric("Số bộ phim", f"{len(df_raw):,}")
         col_b.metric("Số cột", len(df_raw.columns))
-        col_c.metric("Cột số", df_raw.select_dtypes("number").shape[1])
+        
         st.subheader("Xem trước dữ liệu đã làm sạch")
         st.dataframe(df_raw.head(50), use_container_width=True)
 
@@ -198,15 +206,41 @@ elif section == "Phần II: Thống kê & Phân bố":
 
 elif section == "Phần III: Học máy - Phân cụm & So sánh":
     st.header("Phần III: Phân cụm và biểu đồ radar")
-    df = load_cleaned_data()
+    # Ưu tiên DataFrame vừa làm sạch trong phiên hiện tại. Điều này tránh
+    # dùng lại file cache cũ khi người dùng vừa chạy lại Phần I.
+    df = get_data()
     if df is None:
         st.error(
             "Chưa tìm thấy data/cleaned/results.csv. "
             "Hãy chạy phần làm sạch dữ liệu trước."
         )
     else:
+        # Kiểm tra số mẫu hợp lệ để giới hạn n_clusters. Không che nguyên
+        # nhân gốc (ví dụ thiếu cột) bằng thông báo "0 mẫu hợp lệ".
+        try:
+            X_valid = _prepare_cluster_features(df)
+        except (TypeError, ValueError) as exc:
+            st.error(f"Không thể chuẩn bị dữ liệu phân cụm: {exc}")
+            st.stop()
+        n_valid = len(X_valid)
+        max_clusters = min(10, n_valid)
+        if max_clusters < 2:
+            st.error(
+                f"Không đủ dữ liệu để phân cụm (cần ít nhất 2 mẫu hợp lệ, "
+                f"hiện chỉ có {n_valid}). Hãy kiểm tra dữ liệu đầu vào."
+            )
+            st.stop()
+
+        st.caption(
+            f"Phân cụm dùng {n_valid:,}/{len(df):,} phim có đủ Kinh phí, "
+            "Doanh thu và Điểm TMDB."
+        )
         n_clusters = st.slider(
-            "Số cụm (n_clusters)", 2, 10, 3, key="n_clusters"
+            "Số cụm (n_clusters)",
+            2,
+            max_clusters,
+            min(3, max_clusters),
+            key="n_clusters",
         )
         try:
             clustered = run_kmeans_clustering(df, n_clusters)
@@ -235,6 +269,7 @@ elif section == "Phần III: Học máy - Phân cụm & So sánh":
             rating_col = find_cluster_column("Rating", "IMDb_Rating")
             budget_col = find_cluster_column("Budget", "Budget_USD")
             revenue_col = find_cluster_column("Revenue", "Revenue_USD")
+            vote_col = find_cluster_column("Votes", "Votes")
             cluster_summary = clustered.groupby("Cluster").agg(
                 Số_phim=("Cluster", "size"),
                 Rating_trung_vị=(rating_col, "median"),
@@ -287,7 +322,7 @@ elif section == "Phần III: Học máy - Phân cụm & So sánh":
             st.subheader("2. So sánh hai phim bằng biểu đồ radar")
 
             radar_df = df.dropna(
-                subset=["IMDb_Rating", "Budget_USD", "Revenue_USD", "Duration_min"]
+                subset=["IMDb_Rating", "Votes", "Budget_USD", "Revenue_USD", "Duration_min"]
             ).copy()
 
             # Hàm radar chủ động báo lỗi với title trùng; loại khỏi danh sách chọn UI.
@@ -367,6 +402,10 @@ elif section == "Phần III: Học máy - Phân cụm & So sánh":
                             metric_left, metric_right = st.columns(2)
                             metric_left.metric("Kinh phí", format_usd(row["Budget_USD"]))
                             metric_right.metric("Doanh thu", format_usd(row["Revenue_USD"]))
+                            st.metric(
+                                "Lượt đánh giá",
+                                f"{row['Votes']:,.0f}".replace(",", "."),
+                            )
                             st.divider()
                 except ValueError as exc:
                     st.error(str(exc))
@@ -374,7 +413,7 @@ elif section == "Phần III: Học máy - Phân cụm & So sánh":
 
 elif section == "Phần IV: Dự đoán Doanh thu phòng vé":
     st.header("Phần IV: Dự đoán doanh thu")
-    df = load_cleaned_data()
+    df = get_data()
     if df is None:
         st.error(
             "Chưa tìm thấy data/cleaned/results.csv. "
